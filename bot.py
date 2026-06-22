@@ -6,7 +6,7 @@ from telethon.sessions import StringSession
 API_ID = int(os.environ["API_ID"])
 API_HASH = os.environ["API_HASH"]
 SESSION_STRING = os.environ["SESSION_STRING"]
-GROUP_USERNAME = os.environ["GROUP_USERNAME"]
+GROUP_USERNAME = int(os.environ["GROUP_USERNAME"])
 
 mahi_counter = 0
 client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
