@@ -42,7 +42,7 @@ async def on_new_message(event):
 async def send_miu():
     while True:
         try:
-            await client.send_message(GROUP_USERNAME, "میو")
+            await client.send_message(GROUP_USERNAME, "معو")
             print("میو ارسال شد")
         except Exception as e:
             print(f"خطا میو: {e}")
@@ -63,7 +63,7 @@ async def send_pishi():
     await asyncio.sleep(5)
     while True:
         try:
-            msg = await client.send_message(GROUP_USERNAME, "پیشی")
+            msg = await client.send_message(GROUP_USERNAME, "دکتر حوز")
             pending[msg.id] = {"type": "pishi"}
             print("پیشی ارسال شد")
         except Exception as e:
