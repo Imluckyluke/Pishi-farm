@@ -46,7 +46,7 @@ async def send_miu():
             print("میو ارسال شد")
         except Exception as e:
             print(f"خطا میو: {e}")
-        await asyncio.sleep(6 * 60)
+        await asyncio.sleep(5 * 60 + 30)
 
 async def send_mahi():
     await asyncio.sleep(10)
