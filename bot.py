@@ -19,6 +19,25 @@ async def run_client(session_string, client_name):
 
     @client.on(events.NewMessage(chats=GROUP_USERNAME))
     async def on_new_message(event):
+        msg = event.message
+        if not msg.reply_to:
+            return
+        replied_to_id = msg.reply_to.reply_to_msg_id
+        if replied_to_id not in pending:
+            return
+        task = pending.get(replied_to_id)
+        if not msg.buttons:
+            return
+        try:
+            if task["type"] == "pishi":
+                pending.pop(replied_to_id)
+                await msg.click(0)
+                print(f"[{client_name}] پیشی: دکمه اول کلیک شد")
+        except Exception as e:
+            print(f"[{client_name}] خطا در کلیک پیشی: {e}")
+
+    @client.on(events.MessageEdited(chats=GROUP_USERNAME))
+    async def on_message_edited(event):
         nonlocal mahi_counter
         msg = event.message
         if not msg.reply_to:
@@ -26,23 +45,22 @@ async def run_client(session_string, client_name):
         replied_to_id = msg.reply_to.reply_to_msg_id
         if replied_to_id not in pending:
             return
-        task = pending.pop(replied_to_id)
+        task = pending.get(replied_to_id)
+        if task["type"] != "mahi":
+            return
         if not msg.buttons:
             return
         try:
-            if task["type"] == "pishi":
+            pending.pop(replied_to_id)
+            mahi_counter += 1
+            if mahi_counter % 5 == 0:
+                await msg.click(1)
+                print(f"[{client_name}] ماهی: دکمه دوم کلیک شد (بار {mahi_counter})")
+            else:
                 await msg.click(0)
-                print(f"[{client_name}] پیشی: دکمه اول کلیک شد")
-            elif task["type"] == "mahi":
-                mahi_counter += 1
-                if mahi_counter % 5 == 0:
-                    await msg.click(1)
-                    print(f"[{client_name}] ماهی: دکمه دوم کلیک شد (بار {mahi_counter})")
-                else:
-                    await msg.click(0)
-                    print(f"[{client_name}] ماهی: دکمه اول کلیک شد (بار {mahi_counter})")
+                print(f"[{client_name}] ماهی: دکمه اول کلیک شد (بار {mahi_counter})")
         except Exception as e:
-            print(f"[{client_name}] خطا در کلیک: {e}")
+            print(f"[{client_name}] خطا در کلیک ماهی: {e}")
 
     async def send_miu():
         while True:
