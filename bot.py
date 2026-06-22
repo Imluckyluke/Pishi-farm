@@ -68,7 +68,7 @@ async def run_client(session_string, client_name):
         await asyncio.sleep(5)
         while True:
             try:
-                msg = await client.send_message(GROUP_USERNAME, "دکتر حوز")
+                msg = await client.send_message(GROUP_USERNAME, "پیشی")
                 pending[msg.id] = {"type": "pishi"}
                 print(f"[{client_name}] پیشی ارسال شد")
             except Exception as e:
