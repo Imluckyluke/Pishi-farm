@@ -9,17 +9,35 @@ SESSION_STRING_1 = os.environ["SESSION_STRING_1"]
 SESSION_STRING_2 = os.environ["SESSION_STRING_2"]
 GROUP_USERNAME = int(os.environ["GROUP_USERNAME"])
 
+is_running = True
+
 def make_client(session_string):
     return TelegramClient(StringSession(session_string), API_ID, API_HASH)
 
 async def run_client(session_string, client_name):
+    global is_running
     mahi_counter = 0
     pending = {}
     client = make_client(session_string)
 
+    await client.start()
+    me = await client.get_me()
+
     @client.on(events.NewMessage(chats=GROUP_USERNAME))
     async def on_new_message(event):
+        global is_running
         msg = event.message
+
+        if event.sender_id == me.id:
+            if msg.text and msg.text.strip().lower() == "stop":
+                is_running = False
+                print(f"[{client_name}] متوقف شد")
+                return
+            if msg.text and msg.text.strip().lower() == "start":
+                is_running = True
+                print(f"[{client_name}] شروع شد")
+                return
+
         if not msg.reply_to:
             return
         replied_to_id = msg.reply_to.reply_to_msg_id
@@ -64,36 +82,38 @@ async def run_client(session_string, client_name):
 
     async def send_miu():
         while True:
-            try:
-                await client.send_message(GROUP_USERNAME, "معو")
-                print(f"[{client_name}] میو ارسال شد")
-            except Exception as e:
-                print(f"[{client_name}] خطا میو: {e}")
+            if is_running:
+                try:
+                    await client.send_message(GROUP_USERNAME, "معو")
+                    print(f"[{client_name}] میو ارسال شد")
+                except Exception as e:
+                    print(f"[{client_name}] خطا میو: {e}")
             await asyncio.sleep(5 * 60 + 30)
 
     async def send_mahi():
         await asyncio.sleep(10)
         while True:
-            try:
-                msg = await client.send_message(GROUP_USERNAME, "ماهی")
-                pending[msg.id] = {"type": "mahi"}
-                print(f"[{client_name}] ماهی ارسال شد")
-            except Exception as e:
-                print(f"[{client_name}] خطا ماهی: {e}")
+            if is_running:
+                try:
+                    msg = await client.send_message(GROUP_USERNAME, "ماهی")
+                    pending[msg.id] = {"type": "mahi"}
+                    print(f"[{client_name}] ماهی ارسال شد")
+                except Exception as e:
+                    print(f"[{client_name}] خطا ماهی: {e}")
             await asyncio.sleep(60 * 60)
 
     async def send_pishi():
         await asyncio.sleep(5)
         while True:
-            try:
-                msg = await client.send_message(GROUP_USERNAME, "پیشی")
-                pending[msg.id] = {"type": "pishi"}
-                print(f"[{client_name}] پیشی ارسال شد")
-            except Exception as e:
-                print(f"[{client_name}] خطا پیشی: {e}")
+            if is_running:
+                try:
+                    msg = await client.send_message(GROUP_USERNAME, "پیشی")
+                    pending[msg.id] = {"type": "pishi"}
+                    print(f"[{client_name}] پیشی ارسال شد")
+                except Exception as e:
+                    print(f"[{client_name}] خطا پیشی: {e}")
             await asyncio.sleep(30 * 60)
 
-    await client.start()
     print(f"[{client_name}] شروع به کار کرد...")
     await asyncio.gather(
         send_miu(),
