@@ -8,6 +8,7 @@ API_HASH = os.environ["API_HASH"]
 SESSION_STRING_1 = os.environ["SESSION_STRING_1"]
 SESSION_STRING_2 = os.environ["SESSION_STRING_2"]
 GROUP_USERNAME = int(os.environ["GROUP_USERNAME"])
+GROUP_USERNAME_2 = int(os.environ["GROUP_USERNAME_2"])
 
 is_running = True
 
@@ -23,26 +24,21 @@ async def run_client(session_string, client_name):
     await client.start()
     me = await client.get_me()
 
-    # فقط client1 این کارو انجام میده
-    gorbe_pending = {}  # msg_id: تعداد دفعات کلیک
-
-    async def try_click_gorbe(msg_id):
+    async def try_click_gorbe(msg_id, group):
         for attempt in range(3):
             try:
-                msg = await client.get_messages(GROUP_USERNAME, ids=msg_id)
+                msg = await client.get_messages(group, ids=msg_id)
                 if not msg or not msg.buttons:
                     print(f"[{client_name}] گربه خیابونی: دکمه‌ای نیست (تلاش {attempt+1})")
                     await asyncio.sleep(5)
                     continue
                 await msg.click(0)
                 print(f"[{client_name}] گربه خیابونی: کلیک شد (تلاش {attempt+1})")
-                gorbe_pending.pop(msg_id, None)
                 return
             except Exception as e:
                 print(f"[{client_name}] گربه خیابونی: خطا تلاش {attempt+1}: {e}")
             await asyncio.sleep(5)
         print(f"[{client_name}] گربه خیابونی: سه بار امتحان شد، موفق نشد")
-        gorbe_pending.pop(msg_id, None)
 
     @client.on(events.NewMessage(chats=GROUP_USERNAME))
     async def on_new_message(event):
@@ -52,17 +48,17 @@ async def run_client(session_string, client_name):
         if event.sender_id == me.id:
             if msg.text and msg.text.strip().lower() == "stop":
                 is_running = False
+                await client.send_message(GROUP_USERNAME, "متوقف شد ⛔")
                 print(f"[{client_name}] متوقف شد")
                 return
             if msg.text and msg.text.strip().lower() == "start":
                 is_running = True
+                await client.send_message(GROUP_USERNAME, "شروع شد ✅")
                 print(f"[{client_name}] شروع شد")
                 return
 
-        # گربه خیابونی - فقط client1
         if client_name == "client1" and msg.text and "گربه خیابونی" in msg.text:
-            print(f"[{client_name}] گربه خیابونی پیدا شد")
-            asyncio.create_task(try_click_gorbe(msg.id))
+            asyncio.create_task(try_click_gorbe(msg.id, GROUP_USERNAME))
             return
 
         if not msg.reply_to:
@@ -80,6 +76,14 @@ async def run_client(session_string, client_name):
                 print(f"[{client_name}] پیشی: دکمه اول کلیک شد")
         except Exception as e:
             print(f"[{client_name}] خطا در کلیک پیشی: {e}")
+
+    @client.on(events.NewMessage(chats=GROUP_USERNAME_2))
+    async def on_new_message_group2(event):
+        if client_name != "client1":
+            return
+        msg = event.message
+        if msg.text and "گربه خیابونی" in msg.text:
+            asyncio.create_task(try_click_gorbe(msg.id, GROUP_USERNAME_2))
 
     @client.on(events.MessageEdited(chats=GROUP_USERNAME))
     async def on_message_edited(event):
