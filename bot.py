@@ -29,7 +29,6 @@ async def run_client(session_string, client_name):
             try:
                 msg = await client.get_messages(group, ids=msg_id)
                 if not msg or not msg.buttons:
-                    print(f"[{client_name}] گربه خیابونی: دکمه‌ای نیست (تلاش {attempt+1})")
                     await asyncio.sleep(5)
                     continue
                 await msg.click(0)
@@ -102,7 +101,7 @@ async def run_client(session_string, client_name):
         try:
             pending.pop(replied_to_id)
             mahi_counter += 1
-            if mahi_counter % 5 == 0:
+            if mahi_counter % 2 == 0:
                 await msg.click(1)
                 print(f"[{client_name}] ماهی: دکمه دوم کلیک شد (بار {mahi_counter})")
             else:
