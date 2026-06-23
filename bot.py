@@ -23,6 +23,27 @@ async def run_client(session_string, client_name):
     await client.start()
     me = await client.get_me()
 
+    # فقط client1 این کارو انجام میده
+    gorbe_pending = {}  # msg_id: تعداد دفعات کلیک
+
+    async def try_click_gorbe(msg_id):
+        for attempt in range(3):
+            try:
+                msg = await client.get_messages(GROUP_USERNAME, ids=msg_id)
+                if not msg or not msg.buttons:
+                    print(f"[{client_name}] گربه خیابونی: دکمه‌ای نیست (تلاش {attempt+1})")
+                    await asyncio.sleep(5)
+                    continue
+                await msg.click(0)
+                print(f"[{client_name}] گربه خیابونی: کلیک شد (تلاش {attempt+1})")
+                gorbe_pending.pop(msg_id, None)
+                return
+            except Exception as e:
+                print(f"[{client_name}] گربه خیابونی: خطا تلاش {attempt+1}: {e}")
+            await asyncio.sleep(5)
+        print(f"[{client_name}] گربه خیابونی: سه بار امتحان شد، موفق نشد")
+        gorbe_pending.pop(msg_id, None)
+
     @client.on(events.NewMessage(chats=GROUP_USERNAME))
     async def on_new_message(event):
         global is_running
@@ -37,6 +58,12 @@ async def run_client(session_string, client_name):
                 is_running = True
                 print(f"[{client_name}] شروع شد")
                 return
+
+        # گربه خیابونی - فقط client1
+        if client_name == "client1" and msg.text and "گربه خیابونی" in msg.text:
+            print(f"[{client_name}] گربه خیابونی پیدا شد")
+            asyncio.create_task(try_click_gorbe(msg.id))
+            return
 
         if not msg.reply_to:
             return
