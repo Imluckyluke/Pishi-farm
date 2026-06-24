@@ -11,6 +11,15 @@ GROUP_USERNAME = int(os.environ["GROUP_USERNAME"])
 
 is_running = True
 
+# زمان‌های دیفالت (ثانیه)
+DEFAULT_MIU_INTERVAL = 5 * 60
+DEFAULT_MAHI_INTERVAL = 46 * 60
+DEFAULT_PISHI_INTERVAL = 3 * 60 * 60
+
+miu_interval = DEFAULT_MIU_INTERVAL
+mahi_interval = DEFAULT_MAHI_INTERVAL
+pishi_interval = DEFAULT_PISHI_INTERVAL
+
 def parse_shekam(text):
     if not text:
         return None
@@ -26,7 +35,7 @@ def make_client(session_string):
     return TelegramClient(StringSession(session_string), API_ID, API_HASH)
 
 async def run_client(session_string, client_name):
-    global is_running
+    global is_running, miu_interval, mahi_interval, pishi_interval
     pending = {}
     gorbe_clicks = {}
     gorbe_counter = 0
@@ -55,19 +64,73 @@ async def run_client(session_string, client_name):
     @client.on(events.NewMessage(chats=GROUP_USERNAME))
     async def on_new_message(event):
         nonlocal gorbe_counter
-        global is_running
+        global is_running, miu_interval, mahi_interval, pishi_interval
         msg = event.message
 
         if event.sender_id == me.id:
-            if msg.text and msg.text.strip().lower() == "stop":
+            text = msg.text.strip() if msg.text else ""
+
+            if text.lower() == "stop":
                 is_running = False
                 await client.send_message(GROUP_USERNAME, "متوقف شد ⛔")
                 print(f"[{client_name}] stopped")
                 return
-            if msg.text and msg.text.strip().lower() == "start":
+
+            if text.lower() == "start":
                 is_running = True
                 await client.send_message(GROUP_USERNAME, "شروع شد ✅")
                 print(f"[{client_name}] started")
+                return
+
+            # تنظیم میو
+            if text.startswith("تنظیم میو "):
+                parts = text.split()
+                if parts[-1].lower() == "دیفالت":
+                    miu_interval = DEFAULT_MIU_INTERVAL
+                    await client.send_message(GROUP_USERNAME, f"✅ میو برگشت به دیفالت ({DEFAULT_MIU_INTERVAL // 60} دقیقه)")
+                    print(f"[{client_name}] miu reset to default")
+                else:
+                    try:
+                        mins = int(parts[-1])
+                        miu_interval = mins * 60
+                        await client.send_message(GROUP_USERNAME, f"✅ میو هر {mins} دقیقه")
+                        print(f"[{client_name}] miu interval set to {mins} min")
+                    except ValueError:
+                        await client.send_message(GROUP_USERNAME, "❌ فرمت اشتباه. مثال: تنظیم میو 10")
+                return
+
+            # تنظیم ماهی
+            if text.startswith("تنظیم ماهی "):
+                parts = text.split()
+                if parts[-1].lower() == "دیفالت":
+                    mahi_interval = DEFAULT_MAHI_INTERVAL
+                    await client.send_message(GROUP_USERNAME, f"✅ ماهی برگشت به دیفالت ({DEFAULT_MAHI_INTERVAL // 60} دقیقه)")
+                    print(f"[{client_name}] mahi reset to default")
+                else:
+                    try:
+                        mins = int(parts[-1])
+                        mahi_interval = mins * 60
+                        await client.send_message(GROUP_USERNAME, f"✅ ماهی هر {mins} دقیقه")
+                        print(f"[{client_name}] mahi interval set to {mins} min")
+                    except ValueError:
+                        await client.send_message(GROUP_USERNAME, "❌ فرمت اشتباه. مثال: تنظیم ماهی 60")
+                return
+
+            # تنظیم پیشی
+            if text.startswith("تنظیم پیشی "):
+                parts = text.split()
+                if parts[-1].lower() == "دیفالت":
+                    pishi_interval = DEFAULT_PISHI_INTERVAL
+                    await client.send_message(GROUP_USERNAME, f"✅ پیشی برگشت به دیفالت ({DEFAULT_PISHI_INTERVAL // 60} دقیقه)")
+                    print(f"[{client_name}] pishi reset to default")
+                else:
+                    try:
+                        mins = int(parts[-1])
+                        pishi_interval = mins * 60
+                        await client.send_message(GROUP_USERNAME, f"✅ پیشی هر {mins} دقیقه")
+                        print(f"[{client_name}] pishi interval set to {mins} min")
+                    except ValueError:
+                        await client.send_message(GROUP_USERNAME, "❌ فرمت اشتباه. مثال: تنظیم پیشی 180")
                 return
 
         if msg.text and "گربه خیابونی" in msg.text:
@@ -132,7 +195,7 @@ async def run_client(session_string, client_name):
                     print(f"[{client_name}] miu sent")
                 except Exception as e:
                     print(f"[{client_name}] miu error: {e}")
-            await asyncio.sleep(5 * 60)
+            await asyncio.sleep(miu_interval)
 
     async def send_mahi():
         await asyncio.sleep(10)
@@ -155,7 +218,7 @@ async def run_client(session_string, client_name):
                     print(f"[{client_name}] mahi sent")
                 except Exception as e:
                     print(f"[{client_name}] mahi error: {e}")
-            await asyncio.sleep(46 * 60)
+            await asyncio.sleep(mahi_interval)
 
     async def send_pishi():
         await asyncio.sleep(5)
@@ -167,7 +230,7 @@ async def run_client(session_string, client_name):
                     print(f"[{client_name}] pishi sent")
                 except Exception as e:
                     print(f"[{client_name}] pishi error: {e}")
-            await asyncio.sleep(3 * 60 * 60)
+            await asyncio.sleep(pishi_interval)
 
     print(f"[{client_name}] started")
     await asyncio.gather(
