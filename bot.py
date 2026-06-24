@@ -17,11 +17,10 @@ def parse_shekam(text):
         return None
     for line in text.split("\n"):
         if "شکم" in line:
-            match = re.search(r'\((\d+)\s*/\s*(\d+)\)', line)
-            if match:
-                a = int(match.group(1))
-                b = int(match.group(2))
-                return b - a
+            if "من گشنمیووو" in line:
+                return "hungry"
+            else:
+                return "full"
     return None
 
 def make_client(session_string):
@@ -30,8 +29,8 @@ def make_client(session_string):
 async def run_client(session_string, client_name):
     global is_running
     pending = {}
-    gorbe_clicks = {}  # msg_id: تعداد کلیک
-    gorbe_counter = 0  # کانتر کل پیام‌های گربه خیابونی
+    gorbe_clicks = {}
+    gorbe_counter = 0
     client = make_client(session_string)
 
     await client.start()
@@ -101,7 +100,6 @@ async def run_client(session_string, client_name):
         msg = event.message
 
         if msg.text and "گربه خیابونی" in msg.text:
-            # اگه این پیام قبلاً کلیک شده و هنوز به 3 نرسیده دوباره کلیک کن
             if msg.id in gorbe_clicks and gorbe_clicks[msg.id] < 3:
                 asyncio.create_task(click_gorbe_aggressive(msg.id))
             return
@@ -117,13 +115,13 @@ async def run_client(session_string, client_name):
         try:
             if task["type"] == "mahi":
                 pending.pop(replied_to_id)
-                diff = task.get("diff")
-                if diff is not None and diff > 2:
+                shekam = task.get("shekam")
+                if shekam == "hungry":
                     await msg.click(1)
-                    print(f"[{client_name}] ماهی: دکمه دوم (اختلاف {diff})")
+                    print(f"[{client_name}] ماهی: دکمه دوم (گشنه)")
                 else:
                     await msg.click(0)
-                    print(f"[{client_name}] ماهی: دکمه اول (اختلاف {diff})")
+                    print(f"[{client_name}] ماهی: دکمه اول (سیر)")
         except Exception as e:
             print(f"[{client_name}] خطا در کلیک ماهی: {e}")
 
@@ -146,15 +144,16 @@ async def run_client(session_string, client_name):
                     print(f"[{client_name}] پیشی چک ارسال شد")
                     await asyncio.sleep(4)
 
-                    diff = None
+                    shekam = None
                     async for bot_reply in client.iter_messages(GROUP_USERNAME, limit=15):
                         if bot_reply.reply_to and bot_reply.reply_to.reply_to_msg_id == check_msg.id:
-                            diff = parse_shekam(bot_reply.text)
-                            print(f"[{client_name}] اختلاف شکم: {diff}")
+                            print(f"[{client_name}] متن ربات: {repr(bot_reply.text)}")
+                            shekam = parse_shekam(bot_reply.text)
+                            print(f"[{client_name}] وضعیت شکم: {shekam}")
                             break
 
                     msg = await client.send_message(GROUP_USERNAME, "ماهی")
-                    pending[msg.id] = {"type": "mahi", "diff": diff}
+                    pending[msg.id] = {"type": "mahi", "shekam": shekam}
                     print(f"[{client_name}] ماهی ارسال شد")
                 except Exception as e:
                     print(f"[{client_name}] خطا ماهی: {e}")
