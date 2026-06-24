@@ -1,6 +1,5 @@
 import asyncio
 import os
-import re
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 
@@ -42,15 +41,15 @@ async def run_client(session_string, client_name):
             try:
                 msg = await client.get_messages(GROUP_USERNAME, ids=msg_id)
                 if not msg or not msg.buttons:
-                    print(f"[{client_name}] گربه: کلید نداره (کلیک {clicks})")
+                    print(f"[{client_name}] gorbe: no button (click {clicks})")
                     break
                 await msg.click(0)
                 clicks += 1
                 gorbe_clicks[msg_id] = clicks
-                print(f"[{client_name}] گربه: کلیک {clicks} زده شد")
+                print(f"[{client_name}] gorbe: click {clicks} done")
                 await asyncio.sleep(0.5)
             except Exception as e:
-                print(f"[{client_name}] گربه: خطا کلیک {clicks+1}: {e}")
+                print(f"[{client_name}] gorbe: error click {clicks+1}: {e}")
                 await asyncio.sleep(0.5)
 
     @client.on(events.NewMessage(chats=GROUP_USERNAME))
@@ -63,19 +62,19 @@ async def run_client(session_string, client_name):
             if msg.text and msg.text.strip().lower() == "stop":
                 is_running = False
                 await client.send_message(GROUP_USERNAME, "متوقف شد ⛔")
-                print(f"[{client_name}] متوقف شد")
+                print(f"[{client_name}] stopped")
                 return
             if msg.text and msg.text.strip().lower() == "start":
                 is_running = True
                 await client.send_message(GROUP_USERNAME, "شروع شد ✅")
-                print(f"[{client_name}] شروع شد")
+                print(f"[{client_name}] started")
                 return
 
         if msg.text and "گربه خیابونی" in msg.text:
             gorbe_counter += 1
-            print(f"[{client_name}] گربه: پیام {gorbe_counter}")
+            print(f"[{client_name}] gorbe: message {gorbe_counter}")
             if gorbe_counter % 3 == 0:
-                print(f"[{client_name}] گربه: نوبت کلیک!")
+                print(f"[{client_name}] gorbe: clicking!")
                 asyncio.create_task(click_gorbe_aggressive(msg.id))
             return
 
@@ -91,9 +90,9 @@ async def run_client(session_string, client_name):
             if task["type"] == "pishi":
                 pending.pop(replied_to_id)
                 await msg.click(0)
-                print(f"[{client_name}] پیشی: دکمه اول کلیک شد")
+                print(f"[{client_name}] pishi: button 1 clicked")
         except Exception as e:
-            print(f"[{client_name}] خطا در کلیک پیشی: {e}")
+            print(f"[{client_name}] pishi: error: {e}")
 
     @client.on(events.MessageEdited(chats=GROUP_USERNAME))
     async def on_message_edited(event):
@@ -118,21 +117,21 @@ async def run_client(session_string, client_name):
                 shekam = task.get("shekam")
                 if shekam == "hungry":
                     await msg.click(1)
-                    print(f"[{client_name}] ماهی: دکمه دوم (گشنه)")
+                    print(f"[{client_name}] mahi: button 2 clicked (hungry)")
                 else:
                     await msg.click(0)
-                    print(f"[{client_name}] ماهی: دکمه اول (سیر)")
+                    print(f"[{client_name}] mahi: button 1 clicked (full)")
         except Exception as e:
-            print(f"[{client_name}] خطا در کلیک ماهی: {e}")
+            print(f"[{client_name}] mahi: error: {e}")
 
     async def send_miu():
         while True:
             if is_running:
                 try:
                     await client.send_message(GROUP_USERNAME, "معو")
-                    print(f"[{client_name}] میو ارسال شد")
+                    print(f"[{client_name}] miu sent")
                 except Exception as e:
-                    print(f"[{client_name}] خطا میو: {e}")
+                    print(f"[{client_name}] miu error: {e}")
             await asyncio.sleep(5 * 60)
 
     async def send_mahi():
@@ -141,22 +140,21 @@ async def run_client(session_string, client_name):
             if is_running:
                 try:
                     check_msg = await client.send_message(GROUP_USERNAME, "پیشی")
-                    print(f"[{client_name}] پیشی چک ارسال شد")
+                    print(f"[{client_name}] pishi check sent")
                     await asyncio.sleep(4)
 
                     shekam = None
                     async for bot_reply in client.iter_messages(GROUP_USERNAME, limit=15):
                         if bot_reply.reply_to and bot_reply.reply_to.reply_to_msg_id == check_msg.id:
-                            print(f"[{client_name}] متن ربات: {repr(bot_reply.text)}")
                             shekam = parse_shekam(bot_reply.text)
-                            print(f"[{client_name}] وضعیت شکم: {shekam}")
+                            print(f"[{client_name}] shekam: {shekam}")
                             break
 
                     msg = await client.send_message(GROUP_USERNAME, "ماهی")
                     pending[msg.id] = {"type": "mahi", "shekam": shekam}
-                    print(f"[{client_name}] ماهی ارسال شد")
+                    print(f"[{client_name}] mahi sent")
                 except Exception as e:
-                    print(f"[{client_name}] خطا ماهی: {e}")
+                    print(f"[{client_name}] mahi error: {e}")
             await asyncio.sleep(46 * 60)
 
     async def send_pishi():
@@ -166,12 +164,12 @@ async def run_client(session_string, client_name):
                 try:
                     msg = await client.send_message(GROUP_USERNAME, "پیشی")
                     pending[msg.id] = {"type": "pishi"}
-                    print(f"[{client_name}] پیشی ارسال شد")
+                    print(f"[{client_name}] pishi sent")
                 except Exception as e:
-                    print(f"[{client_name}] خطا پیشی: {e}")
+                    print(f"[{client_name}] pishi error: {e}")
             await asyncio.sleep(3 * 60 * 60)
 
-    print(f"[{client_name}] شروع به کار کرد...")
+    print(f"[{client_name}] started")
     await asyncio.gather(
         send_miu(),
         send_mahi(),
