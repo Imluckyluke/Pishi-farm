@@ -1,5 +1,6 @@
 import asyncio
 import os
+import re
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 
@@ -8,39 +9,54 @@ API_HASH = os.environ["API_HASH"]
 SESSION_STRING_1 = os.environ["SESSION_STRING_1"]
 SESSION_STRING_2 = os.environ["SESSION_STRING_2"]
 GROUP_USERNAME = int(os.environ["GROUP_USERNAME"])
-GROUP_USERNAME_2 = int(os.environ["GROUP_USERNAME_2"])
 
 is_running = True
+
+def parse_shekam(text):
+    if not text:
+        return None
+    for line in text.split("\n"):
+        if "شکم" in line:
+            match = re.search(r'\((\d+)\s*/\s*(\d+)\)', line)
+            if match:
+                a = int(match.group(1))
+                b = int(match.group(2))
+                return b - a
+    return None
 
 def make_client(session_string):
     return TelegramClient(StringSession(session_string), API_ID, API_HASH)
 
 async def run_client(session_string, client_name):
     global is_running
-    mahi_counter = 0
     pending = {}
+    gorbe_clicks = {}  # msg_id: تعداد کلیک
+    gorbe_counter = 0  # کانتر کل پیام‌های گربه خیابونی
     client = make_client(session_string)
 
     await client.start()
     me = await client.get_me()
 
-    async def try_click_gorbe(msg_id, group):
-        for attempt in range(3):
+    async def click_gorbe_aggressive(msg_id):
+        clicks = 0
+        while clicks < 3:
             try:
-                msg = await client.get_messages(group, ids=msg_id)
+                msg = await client.get_messages(GROUP_USERNAME, ids=msg_id)
                 if not msg or not msg.buttons:
-                    await asyncio.sleep(5)
-                    continue
+                    print(f"[{client_name}] گربه: کلید نداره (کلیک {clicks})")
+                    break
                 await msg.click(0)
-                print(f"[{client_name}] گربه خیابونی: کلیک شد (تلاش {attempt+1})")
-                return
+                clicks += 1
+                gorbe_clicks[msg_id] = clicks
+                print(f"[{client_name}] گربه: کلیک {clicks} زده شد")
+                await asyncio.sleep(0.5)
             except Exception as e:
-                print(f"[{client_name}] گربه خیابونی: خطا تلاش {attempt+1}: {e}")
-            await asyncio.sleep(5)
-        print(f"[{client_name}] گربه خیابونی: سه بار امتحان شد، موفق نشد")
+                print(f"[{client_name}] گربه: خطا کلیک {clicks+1}: {e}")
+                await asyncio.sleep(0.5)
 
     @client.on(events.NewMessage(chats=GROUP_USERNAME))
     async def on_new_message(event):
+        nonlocal gorbe_counter
         global is_running
         msg = event.message
 
@@ -56,8 +72,12 @@ async def run_client(session_string, client_name):
                 print(f"[{client_name}] شروع شد")
                 return
 
-        if client_name == "client1" and msg.text and "گربه خیابونی" in msg.text:
-            asyncio.create_task(try_click_gorbe(msg.id, GROUP_USERNAME))
+        if msg.text and "گربه خیابونی" in msg.text:
+            gorbe_counter += 1
+            print(f"[{client_name}] گربه: پیام {gorbe_counter}")
+            if gorbe_counter % 3 == 0:
+                print(f"[{client_name}] گربه: نوبت کلیک!")
+                asyncio.create_task(click_gorbe_aggressive(msg.id))
             return
 
         if not msg.reply_to:
@@ -76,37 +96,34 @@ async def run_client(session_string, client_name):
         except Exception as e:
             print(f"[{client_name}] خطا در کلیک پیشی: {e}")
 
-    @client.on(events.NewMessage(chats=GROUP_USERNAME_2))
-    async def on_new_message_group2(event):
-        if client_name != "client1":
-            return
-        msg = event.message
-        if msg.text and "گربه خیابونی" in msg.text:
-            asyncio.create_task(try_click_gorbe(msg.id, GROUP_USERNAME_2))
-
     @client.on(events.MessageEdited(chats=GROUP_USERNAME))
     async def on_message_edited(event):
-        nonlocal mahi_counter
         msg = event.message
+
+        if msg.text and "گربه خیابونی" in msg.text:
+            # اگه این پیام قبلاً کلیک شده و هنوز به 3 نرسیده دوباره کلیک کن
+            if msg.id in gorbe_clicks and gorbe_clicks[msg.id] < 3:
+                asyncio.create_task(click_gorbe_aggressive(msg.id))
+            return
+
         if not msg.reply_to:
             return
         replied_to_id = msg.reply_to.reply_to_msg_id
         if replied_to_id not in pending:
             return
         task = pending.get(replied_to_id)
-        if task["type"] != "mahi":
-            return
         if not msg.buttons:
             return
         try:
-            pending.pop(replied_to_id)
-            mahi_counter += 1
-            if mahi_counter % 2 == 0:
-                await msg.click(1)
-                print(f"[{client_name}] ماهی: دکمه دوم کلیک شد (بار {mahi_counter})")
-            else:
-                await msg.click(0)
-                print(f"[{client_name}] ماهی: دکمه اول کلیک شد (بار {mahi_counter})")
+            if task["type"] == "mahi":
+                pending.pop(replied_to_id)
+                diff = task.get("diff")
+                if diff is not None and diff > 2:
+                    await msg.click(1)
+                    print(f"[{client_name}] ماهی: دکمه دوم (اختلاف {diff})")
+                else:
+                    await msg.click(0)
+                    print(f"[{client_name}] ماهی: دکمه اول (اختلاف {diff})")
         except Exception as e:
             print(f"[{client_name}] خطا در کلیک ماهی: {e}")
 
@@ -118,19 +135,30 @@ async def run_client(session_string, client_name):
                     print(f"[{client_name}] میو ارسال شد")
                 except Exception as e:
                     print(f"[{client_name}] خطا میو: {e}")
-            await asyncio.sleep(5 * 60 + 30)
+            await asyncio.sleep(5 * 60)
 
     async def send_mahi():
         await asyncio.sleep(10)
         while True:
             if is_running:
                 try:
+                    check_msg = await client.send_message(GROUP_USERNAME, "پیشی")
+                    print(f"[{client_name}] پیشی چک ارسال شد")
+                    await asyncio.sleep(4)
+
+                    diff = None
+                    async for bot_reply in client.iter_messages(GROUP_USERNAME, limit=15):
+                        if bot_reply.reply_to and bot_reply.reply_to.reply_to_msg_id == check_msg.id:
+                            diff = parse_shekam(bot_reply.text)
+                            print(f"[{client_name}] اختلاف شکم: {diff}")
+                            break
+
                     msg = await client.send_message(GROUP_USERNAME, "ماهی")
-                    pending[msg.id] = {"type": "mahi"}
+                    pending[msg.id] = {"type": "mahi", "diff": diff}
                     print(f"[{client_name}] ماهی ارسال شد")
                 except Exception as e:
                     print(f"[{client_name}] خطا ماهی: {e}")
-            await asyncio.sleep(60 * 60)
+            await asyncio.sleep(46 * 60)
 
     async def send_pishi():
         await asyncio.sleep(5)
@@ -142,7 +170,7 @@ async def run_client(session_string, client_name):
                     print(f"[{client_name}] پیشی ارسال شد")
                 except Exception as e:
                     print(f"[{client_name}] خطا پیشی: {e}")
-            await asyncio.sleep(30 * 60)
+            await asyncio.sleep(3 * 60 * 60)
 
     print(f"[{client_name}] شروع به کار کرد...")
     await asyncio.gather(
