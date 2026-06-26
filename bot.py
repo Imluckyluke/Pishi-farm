@@ -4,7 +4,7 @@ import re
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 from telethon.tl.functions.messages import SendMediaRequest
-from telethon.tl.types import InputMediaDice
+from telethon.tl.types import InputMediaDice, InputReplyToMessage
 
 API_ID = int(os.environ["API_ID"])
 API_HASH = os.environ["API_HASH"]
@@ -145,10 +145,11 @@ async def run_client(session_string, client_name):
 
             # step 6: ریپلای با dice 🎰
             bot_msg = await fetch_msg(bot_msg.id)
+            peer = await client.get_input_entity(GROUP_USERNAME)
             await client(SendMediaRequest(
-                peer=GROUP_USERNAME,
+                peer=peer,
                 media=InputMediaDice(emoticon="🎰"),
-                reply_to_msg_id=bot_msg.id,
+                reply_to=InputReplyToMessage(reply_to_msg_id=bot_msg.id),
                 message=""
             ))
             print(f"[{client_name}] casino: DONE - sent slot machine dice")
