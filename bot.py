@@ -77,62 +77,76 @@ async def run_client(session_string, client_name):
                 print(f"[{client_name}] gorbe: error click {clicks+1}: {e}")
                 await asyncio.sleep(0.5)
 
+    async def fetch_msg(msg_id):
+        async for m in client.iter_messages(GROUP_USERNAME, ids=msg_id):
+            return m
+        return None
+
     async def do_casino(mio_points):
         try:
             casino_msg = await client.send_message(GROUP_USERNAME, "کازینو")
-            pending[casino_msg.id] = {"type": "casino", "step": 1, "mio_points": mio_points}
             print(f"[{client_name}] casino: sent 'کازینو' id={casino_msg.id}")
-        except Exception as e:
-            print(f"[{client_name}] casino: error: {e}")
+            await asyncio.sleep(3)
 
-    async def handle_casino(msg, replied_to_id, task):
-        step = task["step"]
-        try:
-            if not msg.buttons:
-                print(f"[{client_name}] casino step {step}: no buttons, waiting...")
+            bot_msg = None
+            async for m in client.iter_messages(GROUP_USERNAME, limit=10):
+                if m.reply_to and m.reply_to.reply_to_msg_id == casino_msg.id and m.buttons:
+                    bot_msg = m
+                    break
+
+            if not bot_msg:
+                print(f"[{client_name}] casino: no bot reply found")
                 return
 
-            if step == 1:
-                # سه دکمه یک ردیف - وسطی (0,1)
-                await msg.click(0, 1)
-                task["step"] = 2
-                print(f"[{client_name}] casino: step 1 done - clicked middle (0,1)")
+            # step 1: وسطی (0,1)
+            await bot_msg.click(0, 1)
+            print(f"[{client_name}] casino: step 1 done")
+            await asyncio.sleep(2)
 
-            elif step == 2:
-                # دو ردیف تک دکمه - بالا (0,0) + ریپلای
-                await msg.click(0, 0)
-                print(f"[{client_name}] casino: step 2 - clicked top (0,0)")
-                await asyncio.sleep(1)
-                await client.send_message(GROUP_USERNAME, str(task["mio_points"]), reply_to=msg.id)
-                print(f"[{client_name}] casino: step 2 - replied with {task['mio_points']}")
-                task["step"] = 3
+            # step 2: بالا (0,0) + ریپلای
+            bot_msg = await fetch_msg(bot_msg.id)
+            if not bot_msg or not bot_msg.buttons:
+                print(f"[{client_name}] casino: step 2 no buttons")
+                return
+            await bot_msg.click(0, 0)
+            await asyncio.sleep(1)
+            await client.send_message(GROUP_USERNAME, str(mio_points), reply_to=bot_msg.id)
+            print(f"[{client_name}] casino: step 2 done, replied with {mio_points}")
+            await asyncio.sleep(2)
 
-            elif step == 3:
-                # دو ردیف تک دکمه - بالا (0,0)
-                await msg.click(0, 0)
-                task["step"] = 4
-                print(f"[{client_name}] casino: step 3 done - clicked top (0,0)")
+            # step 3: بالا (0,0)
+            bot_msg = await fetch_msg(bot_msg.id)
+            if not bot_msg or not bot_msg.buttons:
+                print(f"[{client_name}] casino: step 3 no buttons")
+                return
+            await bot_msg.click(0, 0)
+            print(f"[{client_name}] casino: step 3 done")
+            await asyncio.sleep(2)
 
-            elif step == 4:
-                # ردیف بالا سه دکمه - چپ (0,0)
-                await msg.click(0, 0)
-                task["step"] = 5
-                print(f"[{client_name}] casino: step 4 done - clicked left (0,0)")
+            # step 4: چپ (0,0)
+            bot_msg = await fetch_msg(bot_msg.id)
+            if not bot_msg or not bot_msg.buttons:
+                print(f"[{client_name}] casino: step 4 no buttons")
+                return
+            await bot_msg.click(0, 0)
+            print(f"[{client_name}] casino: step 4 done")
+            await asyncio.sleep(2)
 
-            elif step == 5:
-                # دو ردیف تک دکمه - بالا (0,0)
-                await msg.click(0, 0)
-                task["step"] = 6
-                print(f"[{client_name}] casino: step 5 done - clicked top (0,0)")
+            # step 5: بالا (0,0)
+            bot_msg = await fetch_msg(bot_msg.id)
+            if not bot_msg or not bot_msg.buttons:
+                print(f"[{client_name}] casino: step 5 no buttons")
+                return
+            await bot_msg.click(0, 0)
+            print(f"[{client_name}] casino: step 5 done")
+            await asyncio.sleep(2)
 
-            elif step == 6:
-                # ریپلای با 🎰
-                await client.send_message(GROUP_USERNAME, "🎰", reply_to=msg.id)
-                pending.pop(replied_to_id)
-                print(f"[{client_name}] casino: DONE - replied with 🎰")
+            # step 6: ریپلای 🎰
+            await client.send_message(GROUP_USERNAME, "🎰", reply_to=bot_msg.id)
+            print(f"[{client_name}] casino: DONE - replied with 🎰")
 
         except Exception as e:
-            print(f"[{client_name}] casino step {step} error: {e}")
+            print(f"[{client_name}] casino: fatal error: {e}")
 
     @client.on(events.NewMessage(chats=GROUP_USERNAME))
     async def on_new_message(event):
@@ -220,10 +234,6 @@ async def run_client(session_string, client_name):
             return
         task = pending[replied_to_id]
 
-        if task["type"] == "casino":
-            await handle_casino(msg, replied_to_id, task)
-            return
-
         if not msg.buttons:
             return
         try:
@@ -249,10 +259,6 @@ async def run_client(session_string, client_name):
         if replied_to_id not in pending:
             return
         task = pending[replied_to_id]
-
-        if task["type"] == "casino":
-            await handle_casino(msg, replied_to_id, task)
-            return
 
         if not msg.buttons:
             return
