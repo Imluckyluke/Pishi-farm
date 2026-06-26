@@ -77,69 +77,105 @@ async def run_client(session_string, client_name):
                 print(f"[{client_name}] gorbe: error click {clicks+1}: {e}")
                 await asyncio.sleep(0.5)
 
-    async def do_casino(mio_points):
-        try:
-            casino_msg = await client.send_message(GROUP_USERNAME, "کازینو")
-            print(f"[{client_name}] casino: sent 'کازینو'")
-            await asyncio.sleep(3)
+    async def find_and_click(msg, row_index=None, col_index=None, text=None):
+    """کلیک بر اساس متن یا موقعیت"""
+    try:
+        if text:
+            for i, row in enumerate(msg.buttons):
+                for j, btn in enumerate(row):
+                    if text in btn.text:
+                        await msg.click(i, j)
+                        return True
+            return False
+        else:
+            await msg.click(row_index, col_index)
+            return True
+    except Exception as e:
+        print(f"[{client_name}] click error: {e}")
+        return False
 
-            # مرحله ۱: سه دکمه یک ردیفه - دکمه وسط 🎰
-            casino_msg = await client.get_messages(GROUP_USERNAME, ids=casino_msg.id)
-            if not casino_msg or not casino_msg.buttons:
-                print(f"[{client_name}] casino: no buttons step 1")
-                return
-            await casino_msg.click(0, 1)
-            print(f"[{client_name}] casino: step 1 - clicked 🎰")
-            await asyncio.sleep(3)
+async def do_casino(mio_points):
+    try:
+        casino_msg = await client.send_message(GROUP_USERNAME, "کازینو")
+        print(f"[{client_name}] casino: sent 'کازینو'")
+        await asyncio.sleep(3)
 
-            # مرحله ۲: دو ردیف تک دکمه - دکمه بالا
-            casino_msg = await client.get_messages(GROUP_USERNAME, ids=casino_msg.id)
-            if not casino_msg or not casino_msg.buttons:
-                print(f"[{client_name}] casino: no buttons step 2")
-                return
-            await casino_msg.click(0, 0)
-            print(f"[{client_name}] casino: step 2 - clicked top button")
-            await asyncio.sleep(2)
+        # مرحله ۱: دکمه 🎰
+        casino_msg = await client.get_messages(GROUP_USERNAME, ids=casino_msg.id)
+        if not casino_msg or not casino_msg.buttons:
+            print(f"[{client_name}] casino: no buttons step 1")
+            return
+        # پرینت همه دکمه‌ها برای دیباگ
+        for i, row in enumerate(casino_msg.buttons):
+            for j, btn in enumerate(row):
+                print(f"[{client_name}] step1 button ({i},{j}): '{btn.text}'")
+        clicked = await find_and_click(casino_msg, text="🎰")
+        if not clicked:
+            print(f"[{client_name}] casino: 🎰 not found in step 1!")
+            return
+        print(f"[{client_name}] casino: step 1 - clicked 🎰")
+        await asyncio.sleep(3)
 
-            # مرحله ۳: ریپلای با mio_points
-            await client.send_message(GROUP_USERNAME, str(mio_points), reply_to=casino_msg.id)
-            print(f"[{client_name}] casino: step 3 - replied with {mio_points}")
-            await asyncio.sleep(3)
+        # مرحله ۲: دکمه بالا (ردیف اول)
+        casino_msg = await client.get_messages(GROUP_USERNAME, ids=casino_msg.id)
+        if not casino_msg or not casino_msg.buttons:
+            print(f"[{client_name}] casino: no buttons step 2")
+            return
+        for i, row in enumerate(casino_msg.buttons):
+            for j, btn in enumerate(row):
+                print(f"[{client_name}] step2 button ({i},{j}): '{btn.text}'")
+        await find_and_click(casino_msg, row_index=0, col_index=0)
+        print(f"[{client_name}] casino: step 2 - clicked top button")
+        await asyncio.sleep(2)
 
-            # مرحله ۴: دو ردیف تک دکمه - دکمه بالا
-            casino_msg = await client.get_messages(GROUP_USERNAME, ids=casino_msg.id)
-            if not casino_msg or not casino_msg.buttons:
-                print(f"[{client_name}] casino: no buttons step 4")
-                return
-            await casino_msg.click(0, 0)
-            print(f"[{client_name}] casino: step 4 - clicked top button")
-            await asyncio.sleep(3)
+        # مرحله ۳: ریپلای با mio_points
+        await client.send_message(GROUP_USERNAME, str(mio_points), reply_to=casino_msg.id)
+        print(f"[{client_name}] casino: step 3 - replied with {mio_points}")
+        await asyncio.sleep(3)
 
-            # مرحله ۵: ردیف بالا سه دکمه - سمت چپ
-            casino_msg = await client.get_messages(GROUP_USERNAME, ids=casino_msg.id)
-            if not casino_msg or not casino_msg.buttons:
-                print(f"[{client_name}] casino: no buttons step 5")
-                return
-            await casino_msg.click(0, 0)
-            print(f"[{client_name}] casino: step 5 - clicked left button")
-            await asyncio.sleep(3)
+        # مرحله ۴: دکمه بالا
+        casino_msg = await client.get_messages(GROUP_USERNAME, ids=casino_msg.id)
+        if not casino_msg or not casino_msg.buttons:
+            print(f"[{client_name}] casino: no buttons step 4")
+            return
+        for i, row in enumerate(casino_msg.buttons):
+            for j, btn in enumerate(row):
+                print(f"[{client_name}] step4 button ({i},{j}): '{btn.text}'")
+        await find_and_click(casino_msg, row_index=0, col_index=0)
+        print(f"[{client_name}] casino: step 4 - clicked top button")
+        await asyncio.sleep(3)
 
-            # مرحله ۶: دو ردیف تک دکمه - دکمه بالا
-            casino_msg = await client.get_messages(GROUP_USERNAME, ids=casino_msg.id)
-            if not casino_msg or not casino_msg.buttons:
-                print(f"[{client_name}] casino: no buttons step 6")
-                return
-            await casino_msg.click(0, 0)
-            print(f"[{client_name}] casino: step 6 - clicked top button")
-            await asyncio.sleep(3)
+        # مرحله ۵: سمت چپ ردیف بالا
+        casino_msg = await client.get_messages(GROUP_USERNAME, ids=casino_msg.id)
+        if not casino_msg or not casino_msg.buttons:
+            print(f"[{client_name}] casino: no buttons step 5")
+            return
+        for i, row in enumerate(casino_msg.buttons):
+            for j, btn in enumerate(row):
+                print(f"[{client_name}] step5 button ({i},{j}): '{btn.text}'")
+        await find_and_click(casino_msg, row_index=0, col_index=0)
+        print(f"[{client_name}] casino: step 5 - clicked left button")
+        await asyncio.sleep(3)
 
-            # مرحله ۷: ریپلای با 🎰
-            casino_msg = await client.get_messages(GROUP_USERNAME, ids=casino_msg.id)
-            await client.send_message(GROUP_USERNAME, "🎰", reply_to=casino_msg.id)
-            print(f"[{client_name}] casino: step 7 - replied with 🎰 done!")
+        # مرحله ۶: دکمه بالا
+        casino_msg = await client.get_messages(GROUP_USERNAME, ids=casino_msg.id)
+        if not casino_msg or not casino_msg.buttons:
+            print(f"[{client_name}] casino: no buttons step 6")
+            return
+        for i, row in enumerate(casino_msg.buttons):
+            for j, btn in enumerate(row):
+                print(f"[{client_name}] step6 button ({i},{j}): '{btn.text}'")
+        await find_and_click(casino_msg, row_index=0, col_index=0)
+        print(f"[{client_name}] casino: step 6 - clicked top button")
+        await asyncio.sleep(3)
 
-        except Exception as e:
-            print(f"[{client_name}] casino: error: {e}")
+        # مرحله ۷: ریپلای با 🎰
+        casino_msg = await client.get_messages(GROUP_USERNAME, ids=casino_msg.id)
+        await client.send_message(GROUP_USERNAME, "🎰", reply_to=casino_msg.id)
+        print(f"[{client_name}] casino: step 7 - replied with 🎰 done!")
+
+    except Exception as e:
+        print(f"[{client_name}] casino: error: {e}")
 
     @client.on(events.NewMessage(chats=GROUP_USERNAME))
     async def on_new_message(event):
