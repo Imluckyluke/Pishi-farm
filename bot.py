@@ -3,13 +3,10 @@ import os
 import re
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
-from telethon.tl.functions.messages import SendMediaRequest
-from telethon.tl.types import InputMediaDice, InputReplyToMessage
 
 API_ID = int(os.environ["API_ID"])
 API_HASH = os.environ["API_HASH"]
 SESSION_STRING_1 = os.environ["SESSION_STRING_1"]
-SESSION_STRING_2 = os.environ["SESSION_STRING_2"]
 GROUP_USERNAME = int(os.environ["GROUP_USERNAME"])
 
 is_running = True
@@ -17,12 +14,10 @@ is_running = True
 DEFAULT_MIU_INTERVAL = 5 * 60
 DEFAULT_MAHI_INTERVAL = 46 * 60
 DEFAULT_PISHI_INTERVAL = 3 * 60 * 60
-DEFAULT_CASINO_INTERVAL = 6 * 60
 
 miu_interval = DEFAULT_MIU_INTERVAL
 mahi_interval = DEFAULT_MAHI_INTERVAL
 pishi_interval = DEFAULT_PISHI_INTERVAL
-casino_interval = DEFAULT_CASINO_INTERVAL
 
 def parse_shekam(text):
     if not text:
@@ -35,26 +30,11 @@ def parse_shekam(text):
                 return "full"
     return None
 
-def parse_mio_points(text):
-    if not text:
-        return None
-    for line in text.split("\n"):
-        if "میو پوینت" in line:
-            if ":" in line:
-                after_colon = line.split(":")[-1]
-                numbers = re.findall(r'[\d,]+', after_colon)
-                if numbers:
-                    try:
-                        return int(numbers[0].replace(",", ""))
-                    except ValueError:
-                        pass
-    return None
-
 def make_client(session_string):
     return TelegramClient(StringSession(session_string), API_ID, API_HASH)
 
 async def run_client(session_string, client_name):
-    global is_running, miu_interval, mahi_interval, pishi_interval, casino_interval
+    global is_running, miu_interval, mahi_interval, pishi_interval
     pending = {}
     gorbe_clicks = {}
     client = make_client(session_string)
@@ -79,87 +59,9 @@ async def run_client(session_string, client_name):
                 print(f"[{client_name}] gorbe: error click {clicks+1}: {e}")
                 await asyncio.sleep(0.5)
 
-    async def fetch_msg(msg_id):
-        async for m in client.iter_messages(GROUP_USERNAME, ids=msg_id):
-            return m
-        return None
-
-    async def do_casino(mio_points):
-        try:
-            casino_msg = await client.send_message(GROUP_USERNAME, "کازینو")
-            print(f"[{client_name}] casino: sent 'کازینو' id={casino_msg.id}")
-            await asyncio.sleep(5)
-
-            bot_msg = None
-            async for m in client.iter_messages(GROUP_USERNAME, limit=10):
-                if m.reply_to and m.reply_to.reply_to_msg_id == casino_msg.id and m.buttons:
-                    bot_msg = m
-                    break
-
-            if not bot_msg:
-                print(f"[{client_name}] casino: no bot reply found")
-                return
-
-            # step 1: وسطی (0,1)
-            await bot_msg.click(0, 1)
-            print(f"[{client_name}] casino: step 1 done")
-            await asyncio.sleep(5)
-
-            # step 2: بالا (0,0) + ریپلای
-            bot_msg = await fetch_msg(bot_msg.id)
-            if not bot_msg or not bot_msg.buttons:
-                print(f"[{client_name}] casino: step 2 no buttons")
-                return
-            await bot_msg.click(0, 0)
-            await asyncio.sleep(1)
-            await client.send_message(GROUP_USERNAME, str(mio_points), reply_to=bot_msg.id)
-            print(f"[{client_name}] casino: step 2 done, replied with {mio_points}")
-            await asyncio.sleep(5)
-
-            # step 3: بالا (0,0)
-            bot_msg = await fetch_msg(bot_msg.id)
-            if not bot_msg or not bot_msg.buttons:
-                print(f"[{client_name}] casino: step 3 no buttons")
-                return
-            await bot_msg.click(0, 0)
-            print(f"[{client_name}] casino: step 3 done")
-            await asyncio.sleep(5)
-
-            # step 4: چپ (0,0)
-            bot_msg = await fetch_msg(bot_msg.id)
-            if not bot_msg or not bot_msg.buttons:
-                print(f"[{client_name}] casino: step 4 no buttons")
-                return
-            await bot_msg.click(0, 0)
-            print(f"[{client_name}] casino: step 4 done")
-            await asyncio.sleep(5)
-
-            # step 5: بالا (0,0)
-            bot_msg = await fetch_msg(bot_msg.id)
-            if not bot_msg or not bot_msg.buttons:
-                print(f"[{client_name}] casino: step 5 no buttons")
-                return
-            await bot_msg.click(0, 0)
-            print(f"[{client_name}] casino: step 5 done")
-            await asyncio.sleep(5)
-
-            # step 6: ریپلای با dice 🎰
-            bot_msg = await fetch_msg(bot_msg.id)
-            peer = await client.get_input_entity(GROUP_USERNAME)
-            await client(SendMediaRequest(
-                peer=peer,
-                media=InputMediaDice(emoticon="🎰"),
-                reply_to=InputReplyToMessage(reply_to_msg_id=bot_msg.id),
-                message=""
-            ))
-            print(f"[{client_name}] casino: DONE - sent slot machine dice")
-
-        except Exception as e:
-            print(f"[{client_name}] casino: fatal error: {e}")
-
     @client.on(events.NewMessage(chats=GROUP_USERNAME))
     async def on_new_message(event):
-        global is_running, miu_interval, mahi_interval, pishi_interval, casino_interval
+        global is_running, miu_interval, mahi_interval, pishi_interval
         msg = event.message
 
         if event.sender_id == me.id:
@@ -173,6 +75,16 @@ async def run_client(session_string, client_name):
             if text.lower() == "start":
                 is_running = True
                 await client.send_message(GROUP_USERNAME, "شروع شد ✅")
+                return
+
+            if text.lower() == "وضعیت":
+                await client.send_message(
+                    GROUP_USERNAME,
+                    f"⏱ وضعیت فعلی:\n"
+                    f"• میو: {miu_interval // 60} دقیقه\n"
+                    f"• ماهی: {mahi_interval // 60} دقیقه\n"
+                    f"• پیشی: {pishi_interval // 60} دقیقه"
+                )
                 return
 
             if text.startswith("تنظیم میو "):
@@ -215,20 +127,6 @@ async def run_client(session_string, client_name):
                         await client.send_message(GROUP_USERNAME, f"✅ پیشی هر {mins} دقیقه")
                     except ValueError:
                         await client.send_message(GROUP_USERNAME, "❌ فرمت اشتباه. مثال: تنظیم پیشی 180")
-                return
-
-            if text.startswith("تنظیم کازینو "):
-                parts = text.split()
-                if parts[-1].lower() == "دیفالت":
-                    casino_interval = DEFAULT_CASINO_INTERVAL
-                    await client.send_message(GROUP_USERNAME, f"✅ کازینو برگشت به دیفالت ({DEFAULT_CASINO_INTERVAL // 60} دقیقه)")
-                else:
-                    try:
-                        mins = int(parts[-1])
-                        casino_interval = mins * 60
-                        await client.send_message(GROUP_USERNAME, f"✅ کازینو هر {mins} دقیقه")
-                    except ValueError:
-                        await client.send_message(GROUP_USERNAME, "❌ فرمت اشتباه. مثال: تنظیم کازینو 6")
                 return
 
         if msg.text and "گربه خیابونی" in msg.text:
@@ -330,47 +228,16 @@ async def run_client(session_string, client_name):
                     print(f"[{client_name}] mahi error: {e}")
             await asyncio.sleep(mahi_interval)
 
-    async def send_casino():
-        await asyncio.sleep(90)
-        while True:
-            if is_running:
-                try:
-                    mioham_msg = await client.send_message(GROUP_USERNAME, "میوهام")
-                    print(f"[{client_name}] casino: sent 'میوهام'")
-                    await asyncio.sleep(4)
-
-                    mio_points = None
-                    async for bot_reply in client.iter_messages(GROUP_USERNAME, limit=15):
-                        if bot_reply.reply_to and bot_reply.reply_to.reply_to_msg_id == mioham_msg.id:
-                            mio_points = parse_mio_points(bot_reply.text)
-                            print(f"[{client_name}] casino: mio_points={mio_points}")
-                            break
-
-                    if mio_points is None:
-                        print(f"[{client_name}] casino: could not find mio points, skipping")
-                    else:
-                        bet_amount = min(mio_points, 20000)
-                        print(f"[{client_name}] casino: bet_amount={bet_amount}")
-                        await do_casino(bet_amount)
-
-                except Exception as e:
-                    print(f"[{client_name}] casino loop error: {e}")
-            await asyncio.sleep(casino_interval)
-
     print(f"[{client_name}] started")
     await asyncio.gather(
         send_miu(),
         send_pishi(),
         send_mahi(),
-        send_casino(),
         client.run_until_disconnected(),
     )
 
 async def main():
-    await asyncio.gather(
-        run_client(SESSION_STRING_1, "client1"),
-        run_client(SESSION_STRING_2, "client2"),
-    )
+    await run_client(SESSION_STRING_1, "client1")
 
 if __name__ == "__main__":
     asyncio.run(main())
