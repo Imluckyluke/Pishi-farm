@@ -1,5 +1,6 @@
 import asyncio
 import os
+import re
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 
@@ -37,11 +38,8 @@ def parse_mio_points(text):
         return None
     for line in text.split("\n"):
         if "میو پوینت" in line:
-            # پیدا کردن عدد بعد از ":"
             if ":" in line:
                 after_colon = line.split(":")[-1]
-                # حذف همه کاراکترهای غیر عددی و کاما
-                import re
                 numbers = re.findall(r'[\d,]+', after_colon)
                 if numbers:
                     try:
@@ -53,7 +51,7 @@ def parse_mio_points(text):
 def make_client(session_string):
     return TelegramClient(StringSession(session_string), API_ID, API_HASH)
 
-async def run_client(session_string, client_name, start_delay=0):
+async def run_client(session_string, client_name):
     global is_running, miu_interval, mahi_interval, pishi_interval, casino_interval
     pending = {}
     gorbe_clicks = {}
@@ -85,53 +83,60 @@ async def run_client(session_string, client_name, start_delay=0):
             print(f"[{client_name}] casino: sent 'کازینو'")
             await asyncio.sleep(3)
 
+            # مرحله ۱: سه دکمه یک ردیفه - دکمه وسط 🎰
             casino_msg = await client.get_messages(GROUP_USERNAME, ids=casino_msg.id)
             if not casino_msg or not casino_msg.buttons:
-                print(f"[{client_name}] casino: no buttons on casino msg")
+                print(f"[{client_name}] casino: no buttons step 1")
                 return
-            await casino_msg.click(1)
-            print(f"[{client_name}] casino: clicked middle button (🎰)")
+            await casino_msg.click(0, 1)
+            print(f"[{client_name}] casino: step 1 - clicked 🎰")
             await asyncio.sleep(3)
 
+            # مرحله ۲: دو ردیف تک دکمه - دکمه بالا
             casino_msg = await client.get_messages(GROUP_USERNAME, ids=casino_msg.id)
             if not casino_msg or not casino_msg.buttons:
-                print(f"[{client_name}] casino: no buttons after first edit")
-                return
-            await casino_msg.click(0)
-            print(f"[{client_name}] casino: clicked top button (after edit 1)")
-            await asyncio.sleep(2)
-
-            await client.send_message(GROUP_USERNAME, str(mio_points), reply_to=casino_msg.id)
-            print(f"[{client_name}] casino: replied with mio_points={mio_points}")
-            await asyncio.sleep(3)
-
-            casino_msg = await client.get_messages(GROUP_USERNAME, ids=casino_msg.id)
-            if not casino_msg or not casino_msg.buttons:
-                print(f"[{client_name}] casino: no buttons after reply")
-                return
-            await casino_msg.click(0)
-            print(f"[{client_name}] casino: clicked top button (after reply edit)")
-            await asyncio.sleep(3)
-
-            casino_msg = await client.get_messages(GROUP_USERNAME, ids=casino_msg.id)
-            if not casino_msg or not casino_msg.buttons:
-                print(f"[{client_name}] casino: no buttons before left click")
+                print(f"[{client_name}] casino: no buttons step 2")
                 return
             await casino_msg.click(0, 0)
-            print(f"[{client_name}] casino: clicked left button")
+            print(f"[{client_name}] casino: step 2 - clicked top button")
+            await asyncio.sleep(2)
+
+            # مرحله ۳: ریپلای با mio_points
+            await client.send_message(GROUP_USERNAME, str(mio_points), reply_to=casino_msg.id)
+            print(f"[{client_name}] casino: step 3 - replied with {mio_points}")
             await asyncio.sleep(3)
 
+            # مرحله ۴: دو ردیف تک دکمه - دکمه بالا
             casino_msg = await client.get_messages(GROUP_USERNAME, ids=casino_msg.id)
             if not casino_msg or not casino_msg.buttons:
-                print(f"[{client_name}] casino: no buttons after left click")
+                print(f"[{client_name}] casino: no buttons step 4")
                 return
-            await casino_msg.click(0)
-            print(f"[{client_name}] casino: clicked top button (after left)")
+            await casino_msg.click(0, 0)
+            print(f"[{client_name}] casino: step 4 - clicked top button")
             await asyncio.sleep(3)
 
+            # مرحله ۵: ردیف بالا سه دکمه - سمت چپ
+            casino_msg = await client.get_messages(GROUP_USERNAME, ids=casino_msg.id)
+            if not casino_msg or not casino_msg.buttons:
+                print(f"[{client_name}] casino: no buttons step 5")
+                return
+            await casino_msg.click(0, 0)
+            print(f"[{client_name}] casino: step 5 - clicked left button")
+            await asyncio.sleep(3)
+
+            # مرحله ۶: دو ردیف تک دکمه - دکمه بالا
+            casino_msg = await client.get_messages(GROUP_USERNAME, ids=casino_msg.id)
+            if not casino_msg or not casino_msg.buttons:
+                print(f"[{client_name}] casino: no buttons step 6")
+                return
+            await casino_msg.click(0, 0)
+            print(f"[{client_name}] casino: step 6 - clicked top button")
+            await asyncio.sleep(3)
+
+            # مرحله ۷: ریپلای با 🎰
             casino_msg = await client.get_messages(GROUP_USERNAME, ids=casino_msg.id)
             await client.send_message(GROUP_USERNAME, "🎰", reply_to=casino_msg.id)
-            print(f"[{client_name}] casino: replied with 🎰 - done!")
+            print(f"[{client_name}] casino: step 7 - replied with 🎰 done!")
 
         except Exception as e:
             print(f"[{client_name}] casino: error: {e}")
@@ -212,7 +217,6 @@ async def run_client(session_string, client_name, start_delay=0):
                         await client.send_message(GROUP_USERNAME, "❌ فرمت اشتباه. مثال: تنظیم کازینو 6")
                 return
 
-        # گربه خیابونی - روی همه پیام‌ها کلیک می‌کنه
         if msg.text and "گربه خیابونی" in msg.text:
             print(f"[{client_name}] gorbe: new message, clicking!")
             asyncio.create_task(click_gorbe_aggressive(msg.id))
@@ -265,7 +269,7 @@ async def run_client(session_string, client_name, start_delay=0):
             print(f"[{client_name}] mahi: error: {e}")
 
     async def send_miu():
-        await asyncio.sleep(start_delay)
+        await asyncio.sleep(0)
         while True:
             if is_running:
                 try:
@@ -275,8 +279,20 @@ async def run_client(session_string, client_name, start_delay=0):
                     print(f"[{client_name}] miu error: {e}")
             await asyncio.sleep(miu_interval)
 
+    async def send_pishi():
+        await asyncio.sleep(30)
+        while True:
+            if is_running:
+                try:
+                    msg = await client.send_message(GROUP_USERNAME, "پیشی")
+                    pending[msg.id] = {"type": "pishi"}
+                    print(f"[{client_name}] pishi sent")
+                except Exception as e:
+                    print(f"[{client_name}] pishi error: {e}")
+            await asyncio.sleep(pishi_interval)
+
     async def send_mahi():
-        await asyncio.sleep(start_delay + 10)
+        await asyncio.sleep(60)
         while True:
             if is_running:
                 try:
@@ -298,20 +314,8 @@ async def run_client(session_string, client_name, start_delay=0):
                     print(f"[{client_name}] mahi error: {e}")
             await asyncio.sleep(mahi_interval)
 
-    async def send_pishi():
-        await asyncio.sleep(start_delay + 5)
-        while True:
-            if is_running:
-                try:
-                    msg = await client.send_message(GROUP_USERNAME, "پیشی")
-                    pending[msg.id] = {"type": "pishi"}
-                    print(f"[{client_name}] pishi sent")
-                except Exception as e:
-                    print(f"[{client_name}] pishi error: {e}")
-            await asyncio.sleep(pishi_interval)
-
     async def send_casino():
-        await asyncio.sleep(start_delay + 15)
+        await asyncio.sleep(90)
         while True:
             if is_running:
                 try:
@@ -329,25 +333,27 @@ async def run_client(session_string, client_name, start_delay=0):
                     if mio_points is None:
                         print(f"[{client_name}] casino: could not find mio points, skipping")
                     else:
-                        await do_casino(mio_points)
+                        bet_amount = min(mio_points, 20000)
+                        print(f"[{client_name}] casino: bet_amount={bet_amount}")
+                        await do_casino(bet_amount)
 
                 except Exception as e:
                     print(f"[{client_name}] casino loop error: {e}")
             await asyncio.sleep(casino_interval)
 
-    print(f"[{client_name}] started (delay={start_delay}s)")
+    print(f"[{client_name}] started")
     await asyncio.gather(
         send_miu(),
-        send_mahi(),
         send_pishi(),
+        send_mahi(),
         send_casino(),
         client.run_until_disconnected(),
     )
 
 async def main():
     await asyncio.gather(
-        run_client(SESSION_STRING_1, "client1", start_delay=0),
-        run_client(SESSION_STRING_2, "client2", start_delay=10),
+        run_client(SESSION_STRING_1, "client1"),
+        run_client(SESSION_STRING_2, "client2"),
     )
 
 if __name__ == "__main__":
