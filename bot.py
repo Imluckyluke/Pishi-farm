@@ -78,7 +78,7 @@ async def run_client(session_string, client_name):
                 await asyncio.sleep(0.5)
 
     async def find_and_click(msg, row_index=None, col_index=None, text=None):
-    """کلیک بر اساس متن یا موقعیت"""
+    #"""کلیک بر اساس متن یا موقعیت"""
     try:
         if text:
             for i, row in enumerate(msg.buttons):
