@@ -37,12 +37,17 @@ def parse_mio_points(text):
         return None
     for line in text.split("\n"):
         if "میو پوینت" in line:
-            parts = line.split(":")
-            if len(parts) >= 2:
-                try:
-                    return int(parts[-1].strip().replace(",", "").replace("،", ""))
-                except ValueError:
-                    pass
+            # پیدا کردن عدد بعد از ":"
+            if ":" in line:
+                after_colon = line.split(":")[-1]
+                # حذف همه کاراکترهای غیر عددی و کاما
+                import re
+                numbers = re.findall(r'[\d,]+', after_colon)
+                if numbers:
+                    try:
+                        return int(numbers[0].replace(",", ""))
+                    except ValueError:
+                        pass
     return None
 
 def make_client(session_string):
