@@ -3,6 +3,8 @@ import os
 import re
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
+from telethon.tl.functions.messages import SendMediaRequest
+from telethon.tl.types import InputMediaDice
 
 API_ID = int(os.environ["API_ID"])
 API_HASH = os.environ["API_HASH"]
@@ -86,7 +88,7 @@ async def run_client(session_string, client_name):
         try:
             casino_msg = await client.send_message(GROUP_USERNAME, "کازینو")
             print(f"[{client_name}] casino: sent 'کازینو' id={casino_msg.id}")
-            await asyncio.sleep(3)
+            await asyncio.sleep(5)
 
             bot_msg = None
             async for m in client.iter_messages(GROUP_USERNAME, limit=10):
@@ -101,7 +103,7 @@ async def run_client(session_string, client_name):
             # step 1: وسطی (0,1)
             await bot_msg.click(0, 1)
             print(f"[{client_name}] casino: step 1 done")
-            await asyncio.sleep(2)
+            await asyncio.sleep(5)
 
             # step 2: بالا (0,0) + ریپلای
             bot_msg = await fetch_msg(bot_msg.id)
@@ -112,7 +114,7 @@ async def run_client(session_string, client_name):
             await asyncio.sleep(1)
             await client.send_message(GROUP_USERNAME, str(mio_points), reply_to=bot_msg.id)
             print(f"[{client_name}] casino: step 2 done, replied with {mio_points}")
-            await asyncio.sleep(2)
+            await asyncio.sleep(5)
 
             # step 3: بالا (0,0)
             bot_msg = await fetch_msg(bot_msg.id)
@@ -121,7 +123,7 @@ async def run_client(session_string, client_name):
                 return
             await bot_msg.click(0, 0)
             print(f"[{client_name}] casino: step 3 done")
-            await asyncio.sleep(2)
+            await asyncio.sleep(5)
 
             # step 4: چپ (0,0)
             bot_msg = await fetch_msg(bot_msg.id)
@@ -130,7 +132,7 @@ async def run_client(session_string, client_name):
                 return
             await bot_msg.click(0, 0)
             print(f"[{client_name}] casino: step 4 done")
-            await asyncio.sleep(2)
+            await asyncio.sleep(5)
 
             # step 5: بالا (0,0)
             bot_msg = await fetch_msg(bot_msg.id)
@@ -139,11 +141,17 @@ async def run_client(session_string, client_name):
                 return
             await bot_msg.click(0, 0)
             print(f"[{client_name}] casino: step 5 done")
-            await asyncio.sleep(2)
+            await asyncio.sleep(5)
 
-            # step 6: ریپلای 🎰
-            await client.send_message(GROUP_USERNAME, "🎰", reply_to=bot_msg.id)
-            print(f"[{client_name}] casino: DONE - replied with 🎰")
+            # step 6: ریپلای با dice 🎰
+            bot_msg = await fetch_msg(bot_msg.id)
+            await client(SendMediaRequest(
+                peer=GROUP_USERNAME,
+                media=InputMediaDice(emoticon="🎰"),
+                reply_to_msg_id=bot_msg.id,
+                message=""
+            ))
+            print(f"[{client_name}] casino: DONE - sent slot machine dice")
 
         except Exception as e:
             print(f"[{client_name}] casino: fatal error: {e}")
