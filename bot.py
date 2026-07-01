@@ -37,7 +37,8 @@ def parse_rest_time(text):
         if "زمان استراحت" in line:
             m = re.search(r'(\d+):(\d+)', line)
             if m:
-                return int(m.group(1))
+                mins = int(m.group(1))
+                return max(0, mins - 8)
     return None
 
 def parse_interval(text):
