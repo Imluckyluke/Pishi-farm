@@ -1,5 +1,6 @@
 import asyncio
 import os
+import re
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 
@@ -27,6 +28,16 @@ def parse_shekam(text):
                 return "hungry"
             else:
                 return "full"
+    return None
+
+def parse_rest_time(text):
+    if not text:
+        return None
+    for line in text.split("\n"):
+        if "زمان استراحت" in line:
+            m = re.search(r'(\d+):(\d+)', line)
+            if m:
+                return int(m.group(1))
     return None
 
 def parse_interval(text):
@@ -73,6 +84,27 @@ async def run_client(session_string, client_name):
             except Exception as e:
                 print(f"[{client_name}] gorbe: error click {clicks+1}: {e}")
                 await asyncio.sleep(0.5)
+
+    async def initial_qollab_setup():
+        global mahi_interval
+        try:
+            msg = await client.send_message(GROUP_USERNAME, "قلاب")
+            print(f"[{client_name}] قلاب sent")
+            await asyncio.sleep(4)
+
+            async for bot_reply in client.iter_messages(GROUP_USERNAME, limit=15):
+                if bot_reply.reply_to and bot_reply.reply_to.reply_to_msg_id == msg.id:
+                    rest_mins = parse_rest_time(bot_reply.text)
+                    if rest_mins is not None:
+                        mahi_interval = rest_mins * 60
+                        print(f"[{client_name}] mahi_interval set to {mahi_interval} from قلاب")
+                        await client.send_message(
+                            GROUP_USERNAME,
+                            f"✅ ماهی هر {format_interval(mahi_interval)} (خودکار از قلاب)"
+                        )
+                    break
+        except Exception as e:
+            print(f"[{client_name}] قلاب error: {e}")
 
     @client.on(events.NewMessage(chats=GROUP_USERNAME))
     async def on_new_message(event):
@@ -243,6 +275,7 @@ async def run_client(session_string, client_name):
             await asyncio.sleep(mahi_interval)
 
     print(f"[{client_name}] started")
+    await initial_qollab_setup()
     await asyncio.gather(
         send_miu(),
         send_pishi(),
