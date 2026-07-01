@@ -23,7 +23,7 @@ def parse_shekam(text):
         return None
     for line in text.split("\n"):
         if "شکم" in line:
-            if "من گشنمیووو" in line:
+            if "من گشنمیووو" in line or "من دیگه کار نمیکنمیو" in line:
                 return "hungry"
             else:
                 return "full"
